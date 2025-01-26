@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件管理</title>
+    <style>
+            body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #cccccc;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f8f8f8;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            margin: 2px;
+            cursor: pointer;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+
+        .input-container {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+
+        textarea {
+            resize: vertical; /* 允许垂直调整大小 */
+            height: 20px; /* 设置初始高度 */
+        }
+
+        h2 {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>射频信号管理</h1>
+    <h2>新增信号</h2>
+    <form onsubmit="event.preventDefault(); writeFile();">
+        <div class="input-container">
+            <label for="filename">文件名:</label>
+            <input type="text" id="filename" required>
+        </div>
+        <div class="input-container">
+            <label for="filecode">RAW内容:</label>
+            <textarea id="filecode" required></textarea>
+        </div>
+        <button type="submit" class="btn">新增文件</button>
+    </form>
+    <h2>已有信号</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>文件名</th>
+                <th>修改名字</th>
+                <th>删除</th>
+                <th>查看详细</th>
+                <th>修改详细</th> 
+            </tr>
+        </thead>
+        <tbody id="fileTable">
+            <!-- 文件列表 -->
+        </tbody>
+    </table>
+
+    <script>
+        async function loadFiles() {
+            try {
+                const response = await fetch('/getall');
+                const files = await response.json();
+                populateTable(files);
+            } catch (error) {
+                console.error('Error loading files:', error);
+            }
+        }
+        async function writeFile() {
+            const filename = document.getElementById('filename').value;
+            const filecode = document.getElementById('filecode').value;
+
+
+            fetch(`/writefile?filename=${encodeURIComponent(filename)}&filecode=${encodeURIComponent(filecode)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.state) {
+                            alert('添加成功,重启初始化索引');
+                            
+                        } else {
+                            alert('修改失败');
+                        }
+                    }).catch(error => console.error('Error write file:', error));
+            
+        }
+        function populateTable(files) {
+            const table = document.getElementById('fileTable');
+            table.innerHTML = '';
+
+            files.forEach(file => {
+                if (file.name === "" || file.name === "[返回上级]" || file.name === "[删除全部数据]") {
+                    return; 
+                }
+                const row = document.createElement('tr');
+
+                // 文件名
+                let cell = document.createElement('td');
+                cell.textContent = file.name;
+                row.appendChild(cell);
+
+                // 修改名字
+                cell = document.createElement('td');
+                const renameBtn = document.createElement('button');
+                renameBtn.textContent = '修改名字';
+                renameBtn.className = 'btn';
+                renameBtn.onclick = () => renameFile(file.name, file.Base10);
+                cell.appendChild(renameBtn);
+                row.appendChild(cell);
+
+                // // 删除
+                cell = document.createElement('td');
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '删除';
+                deleteBtn.className = 'btn';
+                deleteBtn.onclick = () => deleteFile(file.name);
+                cell.appendChild(deleteBtn); // 删除功能尚未实现
+                row.appendChild(cell);
+
+                // 查看详细
+                cell = document.createElement('td');
+                const viewBtn = document.createElement('button');
+                viewBtn.textContent = '查看详细';
+                viewBtn.className = 'btn';
+                viewBtn.onclick = () => viewDetails(file.name);
+                cell.appendChild(viewBtn);
+                row.appendChild(cell);
+
+                // 修改
+                cell = document.createElement('td');
+                const modifyBtn = document.createElement('button');
+                modifyBtn.textContent = '修改详细';
+                modifyBtn.className = 'btn';
+                modifyBtn.onclick = () => modifyFile(file.name);
+                cell.appendChild(modifyBtn); // 修改详细功能尚未实现
+                row.appendChild(cell);
+
+                table.appendChild(row);
+            });
+        }
+
+        function renameFile(oldName, Base10) {
+            const newName = prompt("输入新名字:", oldName);
+            if (newName && newName !== oldName) {
+                fetch(`/rename?old=${encodeURIComponent(oldName)}&new=${encodeURIComponent(newName)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.state) {
+                            alert('修改成功');
+                            loadFiles(); // 重新加载文件列表
+                        } else {
+                            alert('修改失败');
+                        }
+                    }).catch(error => console.error('Error renaming file:', error));
+            }
+        }
+        function deleteFile(filename) {
+            const newName = prompt("确认删除？:", "删除后不可恢复");
+            if (filename) {
+                fetch(`/deltefile?filename=${encodeURIComponent(filename)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.state) {
+                            alert('删除成功,重启生成缓存');
+                            loadFiles(); // 重新加载文件列表
+                        } else {
+                            alert('删除失败');
+                        }
+                    }).catch(error => console.error('Error renaming file:', error));
+            }
+        }
+        function modifyFile(filename) {
+            // 获取原始数据
+            fetch(`/getfile?filename=${encodeURIComponent(filename)}`)
+                .then(response => response.text())
+                .then(data => {
+                    if (data) {
+                        // 提示用户输入新的数据
+                        const newFileCode = prompt("请输入新的数据:", data);
+
+                        if (newFileCode && newFileCode !== data) {
+                            // 发送修改请求
+                            fetch(`/modifyfile?filename=${encodeURIComponent(filename)}&filecode=${encodeURIComponent(newFileCode)}`)
+                                .then(response => response.json())
+                                .then(modifyData => {
+                                    if (modifyData.state) {
+                                        alert('修改成功');
+                                        loadFiles(); // 重新加载文件列表
+                                    } else {
+                                        alert('修改失败');
+                                    }
+                                }).catch(error => console.error('Error modifying file:', error));
+                        }
+                    } else {
+                        alert('获取原始数据失败');
+                    }
+                }).catch(error => console.error('Error fetching file:', error));
+        }
+        function viewDetails(fileName) {
+            fetch(`/getfile?filename=${encodeURIComponent(fileName)}`)
+                .then(response => response.text())
+                .then(data => {
+                    // 用 substring 方法解析数据
+                    let pattern = data.substring(0, 2);
+                    let Base10_length = data.substring(2, 4);
+                    let Base10 = data.substring(4, parseInt(Base10_length) + 4);
+                    let Position = data.substring(parseInt(Base10_length) + 4, parseInt(Base10_length) + 7);
+                    let Pulse = data.substring(parseInt(Base10_length) + 7, parseInt(Base10_length) + 12);
+                    let Protocol = data.substring(parseInt(Base10_length) + 12, parseInt(Base10_length) + 14);
+
+                    alert(`RAW:${data} \nPattern: ${pattern}\nBase10: ${Base10}\nPosition: ${Position}\nPulse: ${Pulse}\nProtocol: ${Protocol}`);
+                }).catch(error => console.error('Error fetching file details:', error));
+        }
+
+        loadFiles();
+    </script>
+</body>
+
+</html>
