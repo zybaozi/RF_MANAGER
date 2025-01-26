@@ -2,7 +2,10 @@
 
 ## 射频管家代码。
 
-兼容立创广场射频管家1.3的PCB https://oshwhub.com/ys-tao/shuang-pin-ye-pin-guan-jia-v1-3
+兼容立创广场射频管家1.3的PCB https://oshwhub.com/ys-tao/shuang-pin-ye-pin-guan-jia-v1-3 
+
+
+
 思路及 很多核心代码来自于  https://github.com/sprlightning/RF-Master
 
 只有四个界面
